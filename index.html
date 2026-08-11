@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>薪資日曆 / 預算與儲蓄管理</title>
+<style>
+  :root{
+    --bg:#f6fcff;
+    --panel:#ffffff;
+    --muted:#7b8a90;
+    --accent1:#3aa0ff; /* blue */
+    --accent2:#ffd166; /* yellow */
+    --accent3:#9be7b3; /* green */
+    --danger:#ff6b6b;
+    --glass: rgba(255,255,255,0.8);
+    --radius:10px;
+    font-family: "Noto Sans TC", "Helvetica Neue", Arial, sans-serif;
+  }
+  body{margin:0;background:linear-gradient(180deg,var(--bg),#eef9f1);color:#0f1720;}
+  .app{max-width:1200px;margin:24px auto;padding:18px;display:grid;grid-template-columns:1fr 380px;gap:18px;}
+  header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+  h1{margin:0;font-size:18px;color:var(--accent1);}
+  .controls{display:flex;gap:8px;align-items:center;}
+  select,input[type=number]{padding:6px;border-radius:8px;border:1px solid #e2eef5;background:var(--panel);}
+  button{background:var(--accent1);color:white;border:none;padding:8px 10px;border-radius:8px;cursor:pointer;}
+  button.ghost{background:transparent;color:var(--accent1);border:1px solid rgba(58,160,255,0.15);}
+  .left{background:var(--panel);padding:14px;border-radius:var(--radius);box-shadow:0 6px 18px rgba(11,35,63,0.06);}
+  .right{background:linear-gradient(180deg,rgba(255,255,255,0.9),var(--panel));padding:14px;border-radius:var(--radius);box-shadow:0 6px 18px rgba(11,35,63,0.06);height:calc(100vh - 120px);overflow:auto;}
+  /* calendar */
+  .calendar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .dayname{font-size:12px;color:var(--muted);text-align:center;padding:6px 0;}
+  .cell{min-height:90px;background:linear-gradient(180deg,rgba(255,255,255,0.9),#fcfffd);border-radius:10px;padding:8px;border:1px solid rgba(10,20,30,0.04);position:relative;overflow:hidden;}
+  .cell .date{position:absolute;right:8px;top:6px;font-size:12px;color:var(--muted);}
+  .shifts{margin-top:18px;display:flex;flex-direction:column;gap:6px;max-height:54px;overflow:auto;padding-right:6px;}
+  .shift-item{background:linear-gradient(90deg,var(--accent3),#eafdf0);padding:5px;border-radius:8px;font-size:12px;display:flex;justify-content:space-between;align-items:center;gap:6px;}
+  .add-btn{position:absolute;left:8px;top:6px;background:var(--accent2);color:#024;border-radius:6px;padding:4px 6px;font-size:12px;border:none;cursor:pointer;}
+  /* right panels */
+  .panel{background:transparent;padding:8px;border-radius:8px;margin-bottom:12px;}
+  .stat{display:flex;justify-content:space-between;align-items:center;padding:8px 6px;border-radius:8px;background:linear-gradient(90deg,#fff,#fcfffb);border:1px solid rgba(10,20,30,0.04);}
+  .list{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
+  .budget-row{display:flex;align-items:center;gap:8px;}
+  .progress{height:12px;background:#eef4f7;border-radius:8px;overflow:hidden;flex:1;}
+  .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent1),var(--accent3));width:0%;}
+  .small{font-size:13px;color:var(--muted);}
+  .category{min-width:120px;font-weight:600;}
+  .money{font-weight:700;color:#053047;}
+  .muted{color:var(--muted);font-size:13px;}
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(6,12,18,0.45);display:flex;align-items:center;justify-content:center;z-index:30;}
+  .dialog{background:var(--panel);padding:18px;border-radius:12px;min-width:320px;max-width:680px;box-shadow:0 10px 40px rgba(5,10,20,0.2);}
+  .flex{display:flex;gap:8px;align-items:center;}
+  label{display:block;font-size:13px;margin-bottom:6px;color:#054;}
+  input,select,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #e4eef5;background:transparent;}
+  textarea{min-height:66px;resize:vertical;}
+  .row{display:flex;gap:8px;}
+  .row > *{flex:1;}
+  .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;}
+  .mini{font-size:12px;padding:6px 8px;border-radius:8px;}
+  .meta{font-size:12px;color:var(--muted);}
+  .table{width:100%;border-collapse:collapse;}
+  .table td{padding:6px;border-bottom:1px dashed #eef6f8;}
+  .smallmuted{font-size:12px;color:var(--muted);}
+  footer{grid-column:1/-1;text-align:center;color:var(--muted);font-size:13px;margin-top:6px;}
+  /* responsive */
+  @media(max-width:980px){.app{grid-template-columns:1fr;}.right{height:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>薪資日曆與預算管理</h1>
+    <div class="controls">
+      <select id="selYear"></select>
+      <select id="selMonth"></select>
+      <button id="btnToday" class="ghost">回當月</button>
+      <button id="btnExport">匯出備份</button>
+      <button id="btnImport" class="ghost">匯入備份</button>
+    </div>
+  </header>
+
+  <div class="left">
+    <div class="calendar-header">
+      <div>
+        <strong id="monthTitle"></strong>
+        <div class="smallmuted" id="monthSub"></div>
+      </div>
+      <div class="meta">點選日期可新增上班或支出，點擊現有記錄可編輯或刪除</div>
+    </div>
+
+    <div class="calendar" id="calendar">
+      <!-- day names -->
+    </div>
+
+    <!-- small legends -->
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <div style="display:flex;gap:6px;align-items:center;"><span style="width:12px;height:12px;background:var(--accent3);display:inline-block;border-radius:3px;"></span><span class="smallmuted">上班</span></div>
+      <div style="display:flex;gap:6px;align-items:center;"><span style="width:12px;height:12px;background:var(--accent2);display:inline-block;border-radius:3px;"></span><span class="smallmuted">儲蓄入帳</span></div>
+      <div style="display:flex;gap:6px;align-items:center;"><span style="width:12px;height:12px;background:var(--accent1);display:inline-block;border-radius:3px;"></span><span class="smallmuted">支出</span></div>
+    </div>
+  </div>
+
+  <aside class="right">
+    <div class="panel">
+      <div class="stat">
+        <div>
+          <div class="smallmuted">本月總時數</div>
+          <div id="totalHours" style="font-size:18px;font-weight:700">0 時</div>
+        </div>
+        <div>
+          <div class="smallmuted">本月應領</div>
+          <div id="totalPay" style="font-size:18px;color:var(--accent1);font-weight:700">$0</div>
+        </div>
+        <div>
+          <div class="smallmuted">今年累計所得</div>
+          <div id="yearlyPay" style="font-size:18px;color:var(--accent3);font-weight:700">$0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <strong>本月預算（可編輯）</strong>
+      <div class="list" id="budgetList" style="margin-top:10px"></div>
+      <div style="margin-top:8px" class="smallmuted">雙擊預算金額可編輯。支出會自動扣除對應類別。</div>
+    </div>
+
+    <div class="panel">
+      <strong>儲蓄與目標</strong>
+      <div class="list" id="savingsList" style="margin-top:10px"></div>
+      <div style="margin-top:8px">
+        <button id="btnNewSaving" class="mini">+ 新增儲蓄目標/箱子</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <strong>本月交易紀錄（記帳）</strong>
+      <div id="txnList" style="margin-top:8px"></div>
+    </div>
+  </aside>
+
+  <footer>資料儲存在你的瀏覽器（localStorage），可匯出備份或匯入還原。</footer>
+</div>
+
+<!-- modals -->
+<div id="modalRoot" style="display:none"></div>
+
+<script>
+/* 簡易 SPA 用 localStorage 儲存
+   資料結構：
+   store = {
+     shifts: [ {id,date,start,end,hours,rate,location,note} ],
+     expenses: [ {id,date,category,amount,note} ],
+     budgets: { "YYYY-MM": {category:amount,...} },
+     savings: [ {id,name,type,target,current,history:[{date,amount,note}]} ],
+   }
+*/
+const CATEGORIES = ["五週餐費","交通","家用","購物","娛樂社交","帳單","雜支","醫療","美容","保險","寵物"];
+const PRESETS = ["檢定進修","送禮","大餐","紅包","旅遊"];
+const STORAGE_KEY = "salary_calendar_store_v1";
+
+let store = {
+  shifts: [],
+  expenses: [],
+  budgets: {},
+  savings: []
+};
+
+function loadStore(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(raw){
+    try{ store = JSON.parse(raw); }catch(e){ console.error(e); localStorage.removeItem(STORAGE_KEY); }
+  } else {
+    // init default budgets for current month
+    const key = monthKey(new Date().getFullYear(), new Date().getMonth()+1);
+    store.budgets[key] = {};
+    CATEGORIES.forEach(c=>store.budgets[key][c]=0);
+    // init default savings for standard groups
+    PRESETS.forEach(name=>{
+      store.savings.push({id:uid(),name, type:"preset", target:0, current:0, history:[]});
+    });
+    // some standard saving buckets
+    ["銀行","52週","小清新","零錢存錢筒"].forEach(name=>{
+      store.savings.push({id:uid(),name,type:"bucket",target:0,current:0,history:[]});
+    });
+    saveStore();
+  }
+}
+function saveStore(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
+
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function monthKey(y,m){ if(typeof m==='string') m = Number(m); return `${y}-${String(m).padStart(2,'0')}`; }
+
+let cur = new Date();
+let viewYear = cur.getFullYear(), viewMonth = cur.getMonth()+1;
+
+function init(){
+  loadStore();
+  populateYearMonth();
+  renderCalendar();
+  renderRightPanels();
+  document.getElementById('btnToday').onclick = ()=>{ viewYear = new Date().getFullYear(); viewMonth = new Date().getMonth()+1; updateSelectors(); renderCalendar(); renderRightPanels(); };
+  document.getElementById('selYear').addEventListener('change', e=>{ viewYear = Number(e.target.value); renderCalendar(); renderRightPanels(); });
+  document.getElementById('selMonth').addEventListener('change', e=>{ viewMonth = Number(e.target.value); renderCalendar(); renderRightPanels(); });
+  document.getElementById('btnExport').onclick = exportBackup;
+  document.getElementById('btnImport').onclick = ()=>openImportModal();
+  document.getElementById('btnNewSaving').onclick = ()=>openSavingModal();
+}
+
+function populateYearMonth(){
+  const selY = document.getElementById('selYear'), selM = document.getElementById('selMonth');
+  selY.innerHTML = ''; selM.innerHTML = '';
+  const nowY = new Date().getFullYear();
+  for(let y = nowY-3; y<= nowY+3; y++){
+    const opt = document.createElement('option'); opt.value=y; opt.textContent=y; selY.appendChild(opt);
+  }
+  for(let m=1;m<=12;m++){ const opt=document.createElement('option');opt.value=m;opt.textContent=m;selM.appendChild(opt); }
+  updateSelectors();
+}
+function updateSelectors(){ document.getElementById('selYear').value = viewYear; document.getElementById('selMonth').value = viewMonth; }
+
+function renderCalendar(){
+  updateSelectors();
+  const cal = document.getElementById('calendar');
+  cal.innerHTML = '';
+  // day names
+  const names = ["日","一","二","三","四","五","六"];
+  names.forEach(n=>{ const d=document.createElement('div'); d.className='dayname'; d.textContent=n; cal.appendChild(d); });
+
+  const first = new Date(viewYear, viewMonth-1, 1);
+  const startWeek = first.getDay();
+  const days = new Date(viewYear, viewMonth, 0).getDate();
+  // fill blanks
+  for(let i=0;i<startWeek;i++){ const blank=document.createElement('div'); blank.className='cell'; blank.style.opacity='0.2'; cal.appendChild(blank); }
+  for(let d=1; d<=days; d++){
+    const dateStr = `${viewYear}-${String(viewMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cell = document.createElement('div'); cell.className='cell';
+    const addBtn = document.createElement('button'); addBtn.className='add-btn'; addBtn.textContent='+';
+    addBtn.onclick = (ev)=>{ ev.stopPropagation(); openAddModal(dateStr); };
+    const dateLabel = document.createElement('div'); dateLabel.className='date'; dateLabel.textContent=d;
+    cell.appendChild(addBtn);
+    cell.appendChild(dateLabel);
+
+    // list shifts and expenses for this date
+    const allShifts = store.shifts.filter(s=>s.date===dateStr);
+    const divS = document.createElement('div'); divS.className='shifts';
+    allShifts.forEach(s=>{
+      const item = document.createElement('div'); item.className='shift-item';
+      item.innerHTML = `<div style="font-size:12px">${s.start? `${s.start}-${s.end}`: (s.hours+"h")} ${s.location||''}</div><div class="smallmuted">$${(s.rate||0)* (s.hours||0)}</div>`;
+      item.onclick = (ev)=>{ ev.stopPropagation(); openEditShift(s.id); };
+      divS.appendChild(item);
+    });
+    // expenses indicator
+    const exps = store.expenses.filter(e=>e.date===dateStr);
+    exps.forEach(x=>{
+      const ic = document.createElement('div'); ic.style.background= 'var(--accent1)'; ic.style.color='white'; ic.style.padding='4px 6px'; ic.style.borderRadius='8px'; ic.style.fontSize='12px'; ic.style.marginTop='4px';
+      ic.textContent = `-${x.amount} ${x.category}`;
+      ic.onclick = (ev)=>{ ev.stopPropagation(); openEditExpense(x.id); };
+      divS.appendChild(ic);
+    });
+    // savings history indicator (deposit)
+    store.savings.forEach(sav=>{
+      (sav.history||[]).filter(h=>h.date===dateStr).forEach(h=>{
+        const ic = document.createElement('div'); ic.style.background= 'var(--accent2)'; ic.style.color='#003'; ic.style.padding='4px 6px'; ic.style.borderRadius='8px'; ic.style.fontSize='12px'; ic.style.marginTop='4px';
+        ic.textContent = `+${h.amount} ${sav.name}`;
+        ic.onclick = (ev)=>{ ev.stopPropagation(); openSavingHistoryEditor(sav.id,h); };
+        divS.appendChild(ic);
+      });
+    });
+
+    cell.appendChild(divS);
+    cell.onclick = ()=> openAddModal(dateStr); // click anywhere to add
+    cal.appendChild(cell);
+  }
+
+  document.getElementById('monthTitle').textContent = `${viewYear} 年 ${viewMonth} 月`;
+  document.getElementById('monthSub').textContent = `${new Date(viewYear, viewMonth-1,1).toLocaleString('zh-TW',{month:'long'})}`;
+}
+
+function renderRightPanels(){
+  renderStats();
+  renderBudgets();
+  renderSavings();
+  renderTxns();
+}
+
+function renderStats(){
+  // monthly totals
+  const key = monthKey(viewYear, viewMonth);
+  const shifts = store.shifts.filter(s=>s.date.startsWith(`${viewYear}-${String(viewMonth).padStart(2,'0')}`));
+  const totalHours = shifts.reduce((a,b)=>a+(Number(b.hours)||0),0);
+  const totalPay = shifts.reduce((a,b)=>a+ (Number(b.hours)||0)* (Number(b.rate)||0),0);
+  // yearly total:
+  const yearly = store.shifts.filter(s=>s.date.startsWith(`${viewYear}-`)).reduce((a,b)=>a + (Number(b.hours)||0)*(Number(b.rate)||0),0);
+  document.getElementById('totalHours').textContent = totalHours.toFixed(2) + " 時";
+  document.getElementById('totalPay').textContent = "$" + totalPay.toFixed(2);
+  document.getElementById('yearlyPay').textContent = "$" + yearly.toFixed(2);
+}
+
+function renderBudgets(){
+  const el = document.getElementById('budgetList'); el.innerHTML='';
+  const key = monthKey(viewYear, viewMonth);
+  if(!store.budgets[key]){
+    store.budgets[key] = {};
+    CATEGORIES.forEach(c=>store.budgets[key][c]=0);
+    saveStore();
+  }
+  const monthExpenses = store.expenses.filter(e=>e.date.startsWith(`${viewYear}-${String(viewMonth).padStart(2,'0')}`));
+  CATEGORIES.forEach(cat=>{
+    const budget = Number(store.budgets[key][cat]||0);
+    const spent = monthExpenses.filter(e=>e.category===cat).reduce((a,b)=>a+Number(b.amount||0),0);
+    const remain = Math.max(0, budget - spent);
+    const pct = budget>0? Math.min(100, (spent/budget)*100): (spent>0?100:0);
+    const row = document.createElement('div'); row.className='budget-row';
+    row.innerHTML = `<div class="category">${cat}</div>
+      <div class="progress"><i style="width:${pct}%"></i></div>
+      <div style="min-width:90px;text-align:right">
+        <div ondblclick="editBudget('${key}','${cat}')"><span class="smallmuted">預算</span><div class="money">$<span id="b-${cat}">${budget}</span></div></div>
+        <div class="smallmuted">已用 $${spent.toFixed(2)} / 剩 $${remain.toFixed(2)}</div>
+      </div>`;
+    el.appendChild(row);
+  });
+}
+
+window.editBudget = function(key, cat){
+  const curVal = Number(store.budgets[key][cat]||0);
+  const v = prompt(`編輯 ${cat} 的預算（本月：${key}）`, curVal);
+  if(v!==null){
+    const num = Number(v)||0;
+    store.budgets[key][cat]=num;
+    saveStore(); renderBudgets();
+  }
+}
+
+function renderSavings(){
+  const el = document.getElementById('savingsList'); el.innerHTML='';
+  store.savings.forEach(s=>{
+    const pct = s.target>0? Math.min(100, (s.current/s.target)*100): (s.current>0?100:0);
+    const div = document.createElement('div'); div.className='budget-row';
+    div.innerHTML = `<div style="min-width:120px;"><strong>${s.name}</strong><div class="smallmuted">${s.type}</div></div>
+      <div class="progress"><i style="width:${pct}%"></i></div>
+      <div style="min-width:100px;text-align:right">
+        <div class="smallmuted">$${s.current.toFixed(2)} / ${s.target>0?('$'+s.target):'未設定'}</div>
+        <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:6px">
+          <button class="mini" onclick="openSavingAdd('${s.id}')">+存入</button>
+          <button class="mini ghost" onclick="openSavingEdit('${s.id}')">編輯</button>
+        </div>
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+function renderTxns(){
+  const el = document.getElementById('txnList'); el.innerHTML='';
+  const key = monthKey(viewYear, viewMonth);
+  const shifts = store.shifts.filter(s=>s.date.startsWith(`${viewYear}-${String(viewMonth).padStart(2,'0')}`));
+  const expenses = store.expenses.filter(e=>e.date.startsWith(`${viewYear}-${String(viewMonth).padStart(2,'0')}`));
+  const rows = [];
+  shifts.forEach(s=> rows.push({type:'shift',date:s.date, label:`${s.start? s.start+'-'+s.end : s.hours+'h'} ${s.location||''}`, amount: (s.hours||0)*(s.rate||0), id:s.id}));
+  expenses.forEach(e=> rows.push({type:'expense',date:e.date,label:e.category+(e.note?(' - '+e.note):''), amount:-e.amount, id:e.id}));
+  rows.sort((a,b)=> a.date<b.date?1:-1);
+  if(rows.length===0){ el.innerHTML = '<div class="smallmuted">本月尚無交易</div>'; return; }
+  rows.forEach(r=>{
+    const div = document.createElement('div'); div.style.display='flex'; div.style.justifyContent='space-between'; div.style.alignItems='center';
+    div.style.padding='6px 0';
+    div.innerHTML = `<div><div style="font-weight:600">${r.label}</div><div class="smallmuted">${r.date} • ${r.type}</div></div><div style="text-align:right"><div style="font-weight:700;color:${r.amount>=0?'#2b8a3e':'#c0392b'}">${r.amount>=0?'+':'-'}$${Math.abs(r.amount).toFixed(2)}</div><div style="display:flex;gap:6px;justify-content:flex-end;margin-top:6px"><button class="mini ghost" onclick="editRecord('${r.type}','${r.id}')">編輯</button></div></div>`;
+    el.appendChild(div);
+  });
+}
+
+/* MODALS & CRUD */
+const modalRoot = document.getElementById('modalRoot');
+
+function openAddModal(dateStr){
+  // allow choose add type: 上班/支出/儲蓄
+  const d = new Date(dateStr);
+  showModal(`<div class="dialog">
+    <h3>新增紀錄 ${dateStr}</h3>
+    <div class="row" style="margin-top:8px">
+      <button class="mini" id="btnTypeShift">新增上班</button>
+      <button class="mini" id="btnTypeExpense">新增支出</button>
+      <button class="mini" id="btnTypeSaving">儲蓄/存入</button>
+    </div>
+    <div style="margin-top:10px"><button class="mini ghost" onclick="closeModal()">取消</button></div>
+  </div>`);
+  document.getElementById('btnTypeShift').onclick = ()=>{ closeModal(); openShiftModal(dateStr); };
+  document.getElementById('btnTypeExpense').onclick = ()=>{ closeModal(); openExpenseModal(dateStr); };
+  document.getElementById('btnTypeSaving').onclick = ()=>{ closeModal(); openSavingDepositModal(dateStr); };
+}
+
+function openAddModal_pre(dateStr){ openAddModal(dateStr); } // alias
+
+function openShiftModal(dateStr){
+  const html = document.createElement('div');
+  html.className='dialog'; html.innerHTML = `
+    <h3>新增／編輯上班 ${dateStr}</h3>
+    <label>起始時間（可不填，用時數）</label><input id="shiftStart" placeholder="09:00">
+    <label>結束時間（可不填）</label><input id="shiftEnd" placeholder="17:30">
+    <label>時數（若有時間則自動計算，或直接填入小時）</label><input id="shiftHours" type="number" step="0.25" min="0" placeholder="例如 8">
+    <label>時薪</label><input id="shiftRate" type="number" step="0.1" min="0" value="160">
+    <label>地點/備註</label><input id="shiftLoc" placeholder="公司/派遣地點...">
+    <div class="actions"><button class="mini ghost" onclick="closeModal()">取消</button><button class="mini" id="saveShiftBtn">儲存</button></div>
+  `;
+  showModal(html);
+  document.getElementById('saveShiftBtn').onclick = ()=>{
+    const start = document.getElementById('shiftStart').value.trim();
+    const end = document.getElementById('shiftEnd').value.trim();
+    let hours = Number(document.getElementById('shiftHours').value) || 0;
+    const rate = Number(document.getElementById('shiftRate').value) || 0;
+    const loc = document.getElementById('shiftLoc').value.trim();
+    if(start && end && !hours){
+      const h = timeDiffHours(start,end);
+      hours = Math.round(h*100)/100;
+    }
+    if(!hours){ if(!start && !end){ if(!confirm("未填時間或時數，是否仍儲存？")) return; } }
+    const id = uid();
+    store.shifts.push({id,date:dateStr,start,end,hours,rate,location:loc,note:''});
+    saveStore(); closeModal(); renderCalendar(); renderRightPanels();
+  };
+}
+
+function openExpenseModal(dateStr){
+  const html = document.createElement('div');
+  html.className='dialog'; html.innerHTML = `
+    <h3>新增支出 ${dateStr}</h3>
+    <label>類別</label>
+    <select id="expCat">${CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select>
+    <label>金額</label><input id="expAmt" type="number" step="0.1">
+    <label>備註</label><input id="expNote">
+    <div class="actions"><button class="mini ghost" onclick="closeModal()">取消</button><button class="mini" id="saveExpBtn">儲存</button></div>
+  `;
+  showModal(html);
+  document.getElementById('saveExpBtn').onclick = ()=>{
+    const cat = document.getElementById('expCat').value;
+    const amt = Number(document.getElementById('expAmt').value) || 0;
+    const note = document.getElementById('expNote').value || '';
+    store.expenses.push({id:uid(),date:dateStr,category:cat,amount:amt,note});
+    saveStore(); closeModal(); renderCalendar(); renderRightPanels();
+  };
+}
+
+function openSavingDepositModal(dateStr){
+  const html = document.createElement('div');
+  html.className='dialog'; html.innerHTML = `
+    <h3>儲蓄存入 ${dateStr}</h3>
+    <label>選擇儲蓄目標</label>
+    <select id="selSaving">${store.savings.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select>
+    <label>金額</label><input id="svAmt" type="number" step="0.01">
+    <label>備註</label><input id="svNote">
+    <div class="actions"><button class="mini ghost" onclick="closeModal()">取消</button><button class="mini" id="saveSvBtn">存入</button></div>
+  `;
+  showModal(html);
+  document.getElementById('saveSvBtn').onclick = ()=>{
+    const id = document.getElementById('selSaving').value;
+    const amt = Number(document.getElementById('svAmt').value) || 0;
+    const note = document.getElementById('svNote').value || '';
+    const s = store.savings.find(x=>x.id===id);
+    if(!s) return alert('找不到儲蓄目標');
+    s.current = Number(s.current||0) + amt;
+    s.history = s.history || [];
+    s.history.push({id:uid(),date:dateStr,amount:amt,note});
+    saveStore(); closeModal(); renderCalendar(); renderRightPanels();
+  };
+}
+
+function openSavingModal(existingId){
+  // create new saving target
+  const html = document.createElement('div');
+  html.className='dialog'; html.innerHTML = `
+    <h3>新增儲蓄目標 / 箱子</h3>
+    <label>名稱</label><input id="svName" placeholder="例如：旅遊基金">
+    <label>類型</label><select id="svType"><option value="bucket">桶/箱子</option><option value="goal">有目標</option><option value="preset">預存項目</option></select>
+    <label>目標金額（選填）</label><input id="svTarget" type="number">
+    <div class="actions"><button class="mini ghost" onclick="closeModal()">取消</button><button class="mini" id="createSvBtn">建立</button></div>
+  `;
+  showModal(html);
+  document.getElementById('createSvBtn').onclick = ()=>{
+    const name = document.getElementById('svName').value.trim() || '新儲蓄';
+    const type = document.getElementById('svType').value;
+    const target = Number(document.getElementById('svTarget').value) || 0;
+    store.savings.push({id:uid(),name,type: type==='goal'? 'goal' : (type==='preset'?'preset':'bucket'),target:target,current:0,history:[]});
+    saveStore(); closeModal(); renderSavings();
+  };
+}
+
+function openSavingAdd(sid){
+  const s = store.savings.find(x=>x.id===sid); if(!s) return;
+  const dateStr = `${viewYear}-${String(viewMonth).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`;
+  showModal(`<div class="dialog"><h3>存入 ${s.name}</h3>
+    <label>日期</label><input id="svDate" value="${dateStr}">
+    <label>金額</label><input id="svAmt2" type="number">
+    <label>備註</label><input id="svNote2">
+    <div class="actions"><button class="mini ghost" onclick="closeModal()">取消</button><button class="mini" id="saveSv2">確認存入</button></div></div>`);
+  document.getElementById('saveSv2').onclick = ()=>{
+    const date = document.getElementById('svDate').value;
+    const amt = Number(document.getElementById('svAmt2').value) || 0;
+    const note = document.getElementById('svNote2').value||'';
+    s.current = (Number(s.current)||0) + amt;
+    s.history.push({id:uid(),date,amount:amt,note});
+    saveStore(); closeModal(); renderSavings(); renderCalendar();
+  };
+}
+
+function openSavingEdit(sid){
+  const s = store.savings.find(x=>x.id===sid); if(!s) return;
+  showModal(`<div class="dialog"><h3>編輯 ${s.name}</h3>
+    <label>名稱</label><input id="svNameE" value="${s.name}">
+    <label>目標金額</label><input id="svTargetE" type="number" value="${s.target||0}">
+    <label>目前金額</label><input id="svCurE" type="number" value="${s.current||0}">
+    <div class="actions"><button class="mini ghost" onclick="closeModal()">取消</button><button class="mini" id="saveSvE">儲存</button><button class="mini" id="delSv" style="background:var(--danger)">刪除</button></div></div>`);
+  document.getElementById('saveSvE').onclick = ()=>{
+    s.name = document.getElementById('svNameE').value||s.name;
+    s.target = Number(document.getElementById('svTargetE').value) || 0;
+    s.current = Number(document.getElementById('svCurE').value) || 0;
+    saveStore(); closeModal(); renderSavings();
+  };
+  document.getElementById('delSv').onclick = ()=>{
+    if(confirm('確認刪除此儲蓄目標？')){ store.savings = store.savings.filter(x=>x.id!==sid); saveStore(); closeModal(); renderSavings(); }
+  };
+}
+
+function openSavingHistoryEditor(sid, historyEntry){
+  const s = store.savings.find(x=>x.id===sid); if(!s) return;
+  showModal(`<div class="dialog"><h3>編輯存入</h3>
+    <label>日期</label><input id="hDate" value="${historyEntry.date}">
+    <label>金額</label><input id="hAmt" type="number" value="${historyEntry.amount}">
+    <label>備註</label><input id="hNote" value="${historyEntry.note||''}">
+    <div class="actions"><button class="mini ghost" onclick="closeModal()">取消</button><button class="mini" id="saveH">儲存</button><button class="mini" id="delH" style="background:var(--danger)">刪除</button></div></div>`);
+  document.getElementById('saveH').onclick = ()=>{
+    const d = document.getElementById('hDate').value;
+    const amt = Number(document.getElementById('hAmt').value) || 0;
+    const note = document.getElementById('hNote').value || '';
+    // update entry
+    const h = s.history.find(hh=>hh.id===historyEntry.id);
+    if(h){
+      // adjust current
+      s.current = (Number(s.current)||0) - Number(h.amount) + amt;
+      h.date=d; h.amount=amt; h.note=note;
+      saveStore(); closeModal(); renderSavings(); renderCalendar();
+    }
+  };
+  document.getElementById('delH').onclick = ()=>{
+    if(confirm('確定刪除此筆存入紀錄？')){
+      const h = s.history.find(hh=>hh.id===historyEntry.id);
+      if(h){
+        s.current = Number(s.current||0) - Number(h.amount);
+        s.history = s.history.filter(hh=>hh.id!==historyEntry.id);
+        saveStore(); closeModal(); renderSavings(); renderCalendar();
+      }
+    }
+  };
+}
+
+function openEditShift(id){
+  const s = store.shifts.find(x=>x.id===id); if(!s) return;
+  const html = document.createElement('div');
+  html.className='dialog'; html.innerHTML = `
+    <h3>編輯上班 ${s.date}</h3>
+    <label>起始時間</label><input id="shiftStartE" value="${s.start||''}">
+    <label>結束時間</label><input id="shiftEndE" value="${s.end||''}">
+    <label>時數</label><input id="shiftHoursE" type="number" step="0.25" value="${s.hours||0}">
+    <label>時薪</label><input id="shiftRateE" type="number" step="0.1" value="${s.rate||0}">
+    <label>地點</label><input id="shiftLocE" value="${s.location||''}">
+    <label>備註</label><input id="shiftNoteE" value="${s.note||''}">
+    <div class="actions"><button class="mini ghost" onclick="closeModal()">取消</button><button class="mini" id="saveShiftE">儲存</button><button class="mini" id="delShift" style="background:var(--danger)">刪除</button></div>
+  `;
+  showModal(html);
+  document.getElementById('saveShiftE').onclick = ()=>{
+    const start = document.getElementById('shiftStartE').value.trim();
+    const end = document.getElementById('shiftEndE').value.trim();
+    let hours = Number(document.getElementById('shiftHoursE').value) || 0;
+    const rate = Number(document.getElementById('shiftRateE').value) || 0;
+    const loc = document.getElementById('shiftLocE').value.trim();
+    const note = document.getElementById('shiftNoteE').value.trim();
+    if(start && end && !hours) hours = timeDiffHours(start,end);
+    s.start=start; s.end=end; s.hours=hours; s.rate=rate; s.location=loc; s.note=note;
+    saveStore(); closeModal(); renderCalendar(); renderRightPanels();
+  };
+  document.getElementById('delShift').onclick = ()=>{
+    if(confirm('刪除此筆上班紀錄？')){ store.shifts = store.shifts.filter(x=>x.id!==id); saveStore(); closeModal(); renderCalendar(); renderRightPanels(); }
+  };
+}
+
+function openEditExpense(id){
+  const e = store.expenses.find(x=>x.id===id); if(!e) return;
+  const html = document.createElement('div'); html.className='dialog';
+  html.innerHTML = `
+    <h3>編輯支出 ${e.date}</h3>
+    <label>類別</label><select id="eCat">${CATEGORIES.map(c=>`<option ${c===e.category?'selected':''}>${c}</option>`).join('')}</select>
+    <label>金額</label><input id="eAmt" type="number" value="${e.amount}">
+    <label>備註</label><input id="eNote" value="${e.note||''}">
+    <div class="actions"><button class="mini ghost" onclick="closeModal()">取消</button><button class="mini" id="saveE">儲存</button><button class="mini" id="delE" style="background:var(--danger)">刪除</button></div>
+  `;
+  showModal(html);
+  document.getElementById('saveE').onclick = ()=>{
+    e.category = document.getElementById('eCat').value;
+    e.amount = Number(document.getElementById('eAmt').value)||0;
+    e.note = document.getElementById('eNote').value||'';
+    saveStore(); closeModal(); renderCalendar(); renderRightPanels();
+  };
+  document.getElementById('delE').onclick = ()=>{
+    if(confirm('刪除此筆支出？')){ store.expenses = store.expenses.filter(x=>x.id!==id); saveStore(); closeModal(); renderCalendar(); renderRightPanels(); }
+  };
+}
+
+function editRecord(type,id){
+  if(type==='shift') openEditShift(id);
+  else if(type==='expense') openEditExpense(id);
+}
+
+function openImportModal(){
+  showModal(`<div class="dialog"><h3>匯入備份（會覆蓋當前資料）</h3><label>貼上 JSON</label><textarea id="importJson"></textarea><div class="actions"><button class="mini ghost" onclick="closeModal()">取消</button><button class="mini" id="doImport">匯入</button></div></div>`);
+  document.getElementById('doImport').onclick = ()=>{
+    try{
+      const raw = document.getElementById('importJson').value;
+      const obj = JSON.parse(raw);
+      if(confirm('匯入會覆蓋目前資料，確定要繼續？')){
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
+        loadStore(); closeModal(); renderCalendar(); renderRightPanels();
+        alert('匯入成功');
+      }
+    }catch(e){ alert('無效的 JSON'); console.error(e); }
+  };
+}
+
+function exportBackup(){
+  const data = JSON.stringify(store, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download = `salary_calendar_backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url);
+}
+
+/* modal helpers */
+function showModal(content){
+  modalRoot.style.display='block'; modalRoot.innerHTML='';
+  const wrap = document.createElement('div'); wrap.className='modal'; wrap.onclick = (e)=>{ if(e.target===wrap) closeModal(); };
+  if(typeof content === 'string') {
+    wrap.innerHTML = content;
+  } else {
+    wrap.appendChild(content);
+  }
+  modalRoot.appendChild(wrap);
+}
+function closeModal(){ modalRoot.style.display='none'; modalRoot.innerHTML=''; }
+
+/* util */
+function timeDiffHours(s,e){
+  // "HH:MM"
+  try{
+    const [sh,sm]=s.split(':').map(Number);
+    const [eh,em]=e.split(':').map(Number);
+    let start = sh*60+sm, end = eh*60+em;
+    if(end<start) end += 24*60;
+    return (end-start)/60;
+  }catch(e){ return 0; }
+}
+
+/* init */
+init();
+renderCalendar();
+renderRightPanels();
+</script>
+</body>
+</html>
