@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日子．散策 | 蒐集生活的每一寸光陰</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --photo-sage: #BCCEC4;
+            --photo-orange: #F9A13D;
+            --photo-brown: #8E5D3F;
+            --photo-cream: #F2E9D8;
+            --photo-dark: #4A4036;
+            --accent-yellow: #FFD93D;
+        }
+        
+        * { font-family: 'Noto Sans TC', sans-serif !important; }
+
+        body {
+            background-color: var(--photo-cream);
+            color: var(--photo-dark);
+            background-image: radial-gradient(#D8CBB5 1px, transparent 1px);
+            background-size: 25px 25px;
+            padding-bottom: 120px;
+        }
+
+        .cute-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px rgba(142, 93, 63, 0.05);
+        }
+
+        .day-cell { 
+            aspect-ratio: 1; border-radius: 12px; transition: all 0.2s; 
+            border: 1px solid #EAE2D5; background: white;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 2px; overflow: hidden;
+        }
+        .day-cell.active { background: #FFF9F2; border-color: var(--photo-orange); box-shadow: inset 0 0 0 1px var(--photo-orange); }
+        .day-cell .day-num { font-weight: 800; font-size: 11px; margin-bottom: 1px; }
+        .day-cell .work-time { font-size: 8px; font-weight: 700; color: var(--photo-brown); line-height: 1; margin-top: 1px; text-align: center; }
+        .day-cell .work-hours { font-size: 9px; font-weight: 900; color: var(--photo-orange); }
+
+        .stat-label { font-size: 9px; font-weight: 700; color: #A09386; margin-bottom: 1px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 16px; font-weight: 900; color: var(--photo-dark); }
+        
+        .progress-bar { height: 8px; background: #EAE2D5; border-radius: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 10px; transition: width 0.5s ease; }
+
+        .btn-primary { background: var(--photo-brown); color: white; border-radius: 14px; font-weight: 700; transition: all 0.2s; }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .page-content { display: none; }
+        .page-content.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #D8CBB5; border-radius: 10px; }
+
+        select.minimal {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1em;
+            padding-right: 1.5rem;
+        }
+
+        .list-item-btn { transition: all 0.2s; }
+        .list-item-btn:active { background: #f3f4f6; }
+
+        .header-sun {
+            width: 12px;
+            height: 12px;
+            background: var(--accent-yellow);
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 4px;
+            box-shadow: 0 0 10px var(--accent-yellow);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="max-w-2xl mx-auto p-4 md:p-6">
+        <header class="flex flex-col gap-2 mb-8 mt-4">
+            <div class="flex justify-between items-start">
+                <div class="flex flex-col">
+                    <div class="flex items-center">
+                        <span class="header-sun"></span>
+                        <h1 class="text-3xl font-black text-[var(--photo-brown)] tracking-tighter">日子．散策</h1>
+                    </div>
+                    <p class="text-[10px] font-bold text-stone-400 tracking-[0.2em] ml-5 mt-1">蒐集生活的每一寸光陰</p>
+                </div>
+                <div class="flex items-center gap-1 bg-white/80 p-1.5 rounded-2xl border border-white shadow-sm">
+                    <select id="selectYear" onchange="handleDateChange()" class="minimal bg-transparent text-[10px] font-black px-2 py-1 border-none focus:ring-0 cursor-pointer"></select>
+                    <span class="text-stone-300">/</span>
+                    <select id="selectMonth" onchange="handleDateChange()" class="minimal bg-transparent text-[10px] font-black px-2 py-1 border-none focus:ring-0 cursor-pointer">
+                        <option value="0">01 Jan</option><option value="1">02 Feb</option><option value="2">03 Mar</option>
+                        <option value="3">04 Apr</option><option value="4">05 May</option><option value="5">06 Jun</option>
+                        <option value="6">07 Jul</option><option value="7">08 Aug</option><option value="8">09 Sep</option>
+                        <option value="9">10 Oct</option><option value="10">11 Nov</option><option value="11">12 Dec</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 mt-4">
+                <div class="h-[1px] flex-1 bg-stone-200"></div>
+                <h2 id="pageTitle" class="text-stone-400 font-black text-[10px] tracking-[0.3em] uppercase px-4">時光曆法</h2>
+                <div class="h-[1px] flex-1 bg-stone-200"></div>
+            </div>
+        </header>
+
+        <!-- 1. 工作月曆面 -->
+        <main id="page-work" class="page-content active space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+                <div class="cute-card p-4 border-l-4 border-emerald-400">
+                    <p class="stat-label">努力的結晶 (毛利)</p>
+                    <p class="stat-value text-emerald-600" id="statGrossPay">$0</p>
+                </div>
+                <div class="cute-card p-4 border-l-4 border-rose-400">
+                    <p class="stat-label">收穫的果實 (實領)</p>
+                    <p class="stat-value text-rose-600" id="statActualPay">$0</p>
+                </div>
+                <div class="cute-card p-4 bg-stone-100/50">
+                    <p class="stat-label">本年累計積累</p>
+                    <p class="stat-value text-stone-500" id="statYearlyPay">$0</p>
+                </div>
+                <div class="cute-card p-4">
+                    <p class="stat-label">灌溉的時長 (工時)</p>
+                    <p class="stat-value" id="statTotalHours">0.0h</p>
+                </div>
+            </div>
+            <section class="cute-card p-4">
+                <div id="calendarDays" class="grid grid-cols-7 gap-1 md:gap-2"></div>
+            </section>
+        </main>
+
+        <!-- 2. 日常紀錄分頁 -->
+        <main id="page-budget" class="page-content space-y-4">
+            <div class="cute-card p-6 bg-gradient-to-br from-white to-[var(--photo-cream)]">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <p class="stat-label">餘裕的空間</p>
+                        <p class="text-3xl font-black text-emerald-600" id="budgetBalance">$0</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="stat-label">已流出的日常</p>
+                        <p class="text-lg font-bold text-stone-500" id="budgetTotalSpent">$0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="budgetProgressList" class="grid grid-cols-1 md:grid-cols-2 gap-2"></div>
+            
+            <div class="cute-card p-6">
+                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 mb-4 text-center">書寫開支記憶</p>
+                <div class="flex gap-2 mb-2">
+                    <select id="entryCategory" class="flex-1 bg-stone-100 border-none rounded-xl px-3 py-2 text-xs font-bold"></select>
+                    <input type="number" id="entryAmount" placeholder="金額" class="w-24 bg-stone-100 border-none rounded-xl px-3 py-2 text-xs font-bold text-center">
+                </div>
+                <div class="flex gap-2 mb-4">
+                     <input type="date" id="entryDate" class="w-1/2 bg-stone-100 border-none rounded-xl px-3 py-2 text-[10px] font-bold">
+                     <input type="text" id="entryNote" placeholder="備註..." class="flex-1 bg-stone-100 border-none rounded-xl px-3 py-2 text-xs">
+                </div>
+                <button onclick="addEntry()" class="w-full btn-primary py-3 shadow-lg shadow-orange-900/10">留存這份紀錄</button>
+            </div>
+
+            <div class="space-y-2">
+                <h3 class="text-[10px] font-black text-stone-300 uppercase tracking-widest px-2">散策軌跡</h3>
+                <div id="budgetEntryList" class="space-y-2 max-h-[300px] overflow-y-auto custom-scroll pr-1"></div>
+            </div>
+        </main>
+
+        <!-- 3. 未來計畫 -->
+        <main id="page-plans" class="page-content space-y-4">
+            <div class="space-y-3">
+                <h3 class="text-[10px] font-black text-stone-300 uppercase tracking-widest px-2">願望儲蓄計畫</h3>
+                <div id="savingsPlanList" class="grid grid-cols-1 gap-2"></div>
+            </div>
+            <div class="space-y-3 pt-4">
+                <h3 class="text-[10px] font-black text-stone-300 uppercase tracking-widest px-2">未來預存準備</h3>
+                <div id="sinkingPlanList" class="grid grid-cols-1 gap-2"></div>
+            </div>
+        </main>
+
+        <!-- 導覽列 -->
+        <nav class="fixed bottom-6 left-6 right-6 h-16 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl flex items-center justify-around px-2 border border-white/50 z-50">
+            <button onclick="switchPage('work')" id="nav-work" class="nav-btn active flex flex-col items-center text-[var(--photo-brown)]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                <span class="text-[9px] font-bold">耕耘</span>
+            </button>
+            <button onclick="switchPage('budget')" id="nav-budget" class="nav-btn flex flex-col items-center text-stone-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span class="text-[9px] font-bold">日常</span>
+            </button>
+            <button onclick="switchPage('plans')" id="nav-plans" class="nav-btn flex flex-col items-center text-stone-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                <span class="text-[9px] font-bold">未來</span>
+            </button>
+            <button onclick="openSettings()" class="flex flex-col items-center text-stone-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <span class="text-[9px] font-bold">齒輪</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Modals -->
+    <!-- 修正預算紀錄 Modal -->
+    <div id="modalEditEntry" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-xs shadow-2xl">
+            <h3 class="font-black text-center mb-6 text-stone-600">修正這筆日常記憶</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[9px] font-bold text-stone-400">日期</label>
+                    <input type="date" id="editEntryDate" class="w-full bg-stone-100 rounded-xl px-4 py-2 text-sm font-bold">
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-stone-400">類別</label>
+                    <select id="editEntryCategory" class="w-full bg-stone-100 rounded-xl px-4 py-2 text-sm font-bold"></select>
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-stone-400">金額</label>
+                    <input type="number" id="editEntryAmount" class="w-full bg-stone-100 rounded-xl px-4 py-2 text-sm font-bold">
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-stone-400">備註</label>
+                    <input type="text" id="editEntryNote" class="w-full bg-stone-100 rounded-xl px-4 py-2 text-sm">
+                </div>
+            </div>
+            <button onclick="saveEditEntry()" class="w-full btn-primary py-4 mt-6">更新記憶</button>
+            <button onclick="deleteEntry()" class="w-full text-rose-400 font-bold text-xs py-2 mt-2">抹除這筆紀錄</button>
+            <button onclick="closeModal('modalEditEntry')" class="w-full text-stone-300 text-[10px] py-2 mt-2">算了，不改了</button>
+        </div>
+    </div>
+
+    <!-- 工作內容 Modal -->
+    <div id="modalWork" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-xs">
+            <h3 id="modalDate" class="font-black text-center mb-6 text-stone-600">那天的事情...</h3>
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <div>
+                    <label class="text-[9px] font-bold text-stone-400">開始耕耘</label>
+                    <input type="time" id="startTime" class="w-full bg-stone-100 rounded-xl px-2 py-2 text-xs">
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-stone-400">結束灌溉</label>
+                    <input type="time" id="endTime" class="w-full bg-stone-100 rounded-xl px-2 py-2 text-xs">
+                </div>
+            </div>
+            <label class="text-[9px] font-bold text-stone-400">時薪 (NTD)</label>
+            <input type="number" id="inputRate" class="w-full bg-stone-100 rounded-xl px-4 py-3 text-sm font-bold mb-4" value="190">
+            <button onclick="saveWork()" class="w-full btn-primary py-4 mb-2">儲存紀錄</button>
+            <button onclick="deleteWork()" class="w-full text-rose-400 font-bold text-xs py-2">刪除</button>
+            <button onclick="closeModal('modalWork')" class="w-full text-stone-300 text-[10px] mt-2">回上一頁</button>
+        </div>
+    </div>
+
+    <!-- 計畫操作 Modal -->
+    <div id="modalPlanAction" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
+            <h3 id="planActionTitle" class="font-black text-center mb-4 text-stone-600 underline decoration-[var(--accent-yellow)] underline-offset-8">計畫標題</h3>
+            <div class="overflow-y-auto custom-scroll px-1">
+                <div id="planStatus" class="bg-stone-50 p-4 rounded-2xl mb-4 text-center">
+                    <p class="text-[10px] text-stone-400 font-bold tracking-widest">目前積累</p>
+                    <p class="text-2xl font-black text-emerald-600" id="planCurrentBalance">$0</p>
+                </div>
+                <div class="flex gap-2 mb-4">
+                    <button onclick="setPlanActionType('deposit')" id="btnDeposit" class="flex-1 py-2 rounded-xl bg-emerald-50 text-emerald-600 font-black text-xs border-2 border-emerald-500">存入 (+)</button>
+                    <button onclick="setPlanActionType('withdraw')" id="btnWithdraw" class="flex-1 py-2 rounded-xl bg-stone-50 text-stone-400 font-black text-xs border-2 border-transparent">取出 (-)</button>
+                </div>
+                <div class="space-y-4">
+                    <input type="number" id="planActionAmount" placeholder="輸入金額" class="w-full bg-stone-100 rounded-xl px-4 py-3 text-sm font-bold border-none text-center">
+                    <input type="text" id="planActionNote" placeholder="想要寫點什麼..." class="w-full bg-stone-100 rounded-xl px-4 py-3 text-xs border-none">
+                </div>
+                <button onclick="savePlanAction()" class="w-full btn-primary py-4 mt-6">確定變動</button>
+                
+                <div class="mt-8 border-t border-stone-100 pt-6">
+                    <p class="text-[10px] font-black text-stone-400 mb-3 uppercase tracking-[0.2em] text-center">軌跡明細 (點擊可修正)</p>
+                    <div id="planLogList" class="space-y-2"></div>
+                </div>
+            </div>
+            <button onclick="closeModal('modalPlanAction')" class="w-full text-stone-300 text-[10px] py-4 mt-2">關閉視窗</button>
+        </div>
+    </div>
+
+    <!-- 修正計畫歷史紀錄 Modal -->
+    <div id="modalEditPlanLog" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[110] flex items-center justify-center p-6">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-xs shadow-2xl">
+            <h3 class="font-black text-center mb-6 text-stone-600">修正計畫刻痕</h3>
+            <div class="space-y-4">
+                <div class="flex gap-2 mb-4">
+                    <button onclick="setEditPlanLogType('deposit')" id="btnEditDep" class="flex-1 py-2 rounded-xl font-black text-[10px]">存入 (+)</button>
+                    <button onclick="setEditPlanLogType('withdraw')" id="btnEditWit" class="flex-1 py-2 rounded-xl font-black text-[10px]">取出 (-)</button>
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-stone-400">日期</label>
+                    <input type="date" id="editPlanLogDate" class="w-full bg-stone-100 rounded-xl px-4 py-2 text-sm font-bold">
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-stone-400">金額</label>
+                    <input type="number" id="editPlanLogAmount" class="w-full bg-stone-100 rounded-xl px-4 py-2 text-sm font-bold">
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-stone-400">備註</label>
+                    <input type="text" id="editPlanLogNote" class="w-full bg-stone-100 rounded-xl px-4 py-2 text-sm">
+                </div>
+            </div>
+            <button onclick="saveEditPlanLog()" class="w-full btn-primary py-4 mt-6">更新計畫</button>
+            <button onclick="deletePlanLog()" class="w-full text-rose-400 font-bold text-xs py-2 mt-2">抹除此筆</button>
+            <button onclick="closeModal('modalEditPlanLog')" class="w-full text-stone-300 text-[10px] py-2 mt-2">返回</button>
+        </div>
+    </div>
+
+    <!-- 設定 Modal -->
+    <div id="modalSettings" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+        <div class="bg-white rounded-3xl p-8 w-full max-sm shadow-2xl">
+            <h3 class="font-black text-center mb-6 uppercase tracking-widest text-stone-600">系統齒輪配置</h3>
+            <div class="space-y-4 overflow-y-auto max-h-[450px] custom-scroll pr-2">
+                <div>
+                    <label class="text-[10px] font-bold text-stone-400 mb-1 block">每月勞健保扣除</label>
+                    <input type="number" id="inputInsurance" class="w-full bg-stone-100 rounded-xl px-4 py-2 text-sm font-bold border-none">
+                </div>
+                <div id="budgetLimitList" class="space-y-2 pt-2 border-t border-stone-100"></div>
+                <div id="planLimitList" class="space-y-2 pt-2 border-t border-stone-100">
+                    <p class="text-[10px] font-black text-stone-400 mb-2 uppercase">儲蓄計畫目標</p>
+                    <div id="planInputsContainer" class="space-y-2"></div>
+                </div>
+            </div>
+            <button onclick="saveGlobalSettings()" class="w-full btn-primary py-4 mt-6">儲存我的配置</button>
+            <button onclick="closeModal('modalSettings')" class="w-full text-stone-300 text-[10px] py-2 mt-2">取消</button>
+        </div>
+    </div>
+
+    <script>
+        // 初始狀態
+        let state = {
+            currentYear: new Date().getFullYear(),
+            currentMonth: new Date().getMonth(),
+            insuranceFee: 1200,
+            workData: {}, 
+            entries: [],  
+            budgets: {
+                food_w1: { label: '餐費 (W1)', limit: 1500 },
+                food_w2: { label: '餐費 (W2)', limit: 1500 },
+                food_w3: { label: '餐費 (W3)', limit: 1500 },
+                food_w4: { label: '餐費 (W4)', limit: 1500 },
+                food_w5: { label: '餐費 (W5)', limit: 1000 },
+                bills: { label: '帳單費用', limit: 2000 },
+                transport: { label: '交通費', limit: 1000 },
+                shopping: { label: '購物支出', limit: 2000 },
+                social: { label: '社交娛樂', limit: 1500 },
+                household: { label: '家用支出', limit: 2000 },
+                beauty: { label: '美容保養', limit: 1000 },
+                medical: { label: '醫療藥品', limit: 500 },
+                insurance: { label: '保險費用', limit: 3000 },
+                pet: { label: '寵物開銷', limit: 1500 },
+                misc: { label: '雜項支出', limit: 1000 }
+            },
+            plans: {
+                bank: { type: 'saving', label: '銀行定存', target: 50000, logs: [] },
+                week52: { type: 'saving', label: '52週挑戰', target: 13780, logs: [] },
+                fresh: { type: 'saving', label: '小清新儲蓄', target: 5000, logs: [] },
+                education: { type: 'sinking', label: '進修學習', target: 10000, logs: [] },
+                gift: { type: 'sinking', label: '送禮預備', target: 5000, logs: [] },
+                dinner: { type: 'sinking', label: '大餐基金', target: 3000, logs: [] },
+                red: { type: 'sinking', label: '過年紅包', target: 20000, logs: [] },
+                travel: { type: 'sinking', label: '旅遊基金', target: 30000, logs: [] }
+            }
+        };
+
+        function init() {
+            populateYearSelector();
+            loadData();
+            syncSelectors();
+            renderCalendar();
+            updateStats();
+            updateCategoryDropdown();
+            document.getElementById('entryDate').valueAsDate = new Date();
+        }
+
+        function populateYearSelector() {
+            const select = document.getElementById('selectYear');
+            select.innerHTML = '';
+            for (let y = 2024; y <= 2110; y++) {
+                const opt = document.createElement('option');
+                opt.value = y; opt.innerText = y;
+                select.appendChild(opt);
+            }
+        }
+
+        function syncSelectors() {
+            document.getElementById('selectYear').value = state.currentYear;
+            document.getElementById('selectMonth').value = state.currentMonth;
+        }
+
+        function handleDateChange() {
+            state.currentYear = parseInt(document.getElementById('selectYear').value);
+            state.currentMonth = parseInt(document.getElementById('selectMonth').value);
+            renderCalendar();
+            updateStats();
+            if(document.getElementById('page-budget').classList.contains('active')) renderBudgetPage();
+            if(document.getElementById('page-plans').classList.contains('active')) renderPlansPage();
+        }
+
+        function saveData() { localStorage.setItem('life_log_data_v7', JSON.stringify(state)); }
+        function loadData() {
+            const saved = localStorage.getItem('life_log_data_v7');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                state.workData = parsed.workData || {};
+                state.entries = parsed.entries || [];
+                state.insuranceFee = parsed.insuranceFee || 1200;
+                if(parsed.budgets) {
+                    Object.keys(parsed.budgets).forEach(k => { if(state.budgets[k]) state.budgets[k].limit = parsed.budgets[k].limit; });
+                }
+                if(parsed.plans) {
+                    Object.keys(parsed.plans).forEach(k => {
+                        if(state.plans[k]) {
+                            state.plans[k].target = parsed.plans[k].target;
+                            state.plans[k].logs = parsed.plans[k].logs || [];
+                            // 為舊數據添加 ID
+                            state.plans[k].logs.forEach(log => { if(!log.id) log.id = Math.random().toString(36).substr(2, 9); });
+                        }
+                    });
+                }
+            }
+        }
+
+        function switchPage(p) {
+            document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.replace('text-[var(--photo-brown)]', 'text-stone-300'));
+            document.getElementById(`page-${p}`).classList.add('active');
+            document.getElementById(`nav-${p}`).classList.replace('text-stone-300', 'text-[var(--photo-brown)]');
+            
+            const titleMap = { 'work': '時光曆法', 'budget': '日常紀錄', 'plans': '願望清單' };
+            document.getElementById('pageTitle').innerText = titleMap[p];
+            
+            if (p === 'budget') renderBudgetPage();
+            if (p === 'plans') renderPlansPage();
+        }
+
+        // --- 工作區邏輯 ---
+        function renderCalendar() {
+            const grid = document.getElementById('calendarDays'); grid.innerHTML = '';
+            const firstDay = new Date(state.currentYear, state.currentMonth, 1).getDay();
+            const totalDays = new Date(state.currentYear, state.currentMonth + 1, 0).getDate();
+            for (let i = 0; i < firstDay; i++) grid.innerHTML += '<div></div>';
+            for (let d = 1; d <= totalDays; d++) {
+                const dateKey = `${state.currentYear}-${String(state.currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const work = state.workData[dateKey];
+                const cell = document.createElement('div');
+                cell.className = `day-cell cursor-pointer ${work ? 'active' : ''}`;
+                cell.onclick = () => openWorkModal(dateKey);
+                cell.innerHTML = `<span class="day-num ${work ? 'text-[var(--photo-brown)]' : 'text-stone-400'}">${d}</span>`;
+                if (work) {
+                    cell.innerHTML += `<span class="work-time">${work.start}<br>${work.end}</span>`;
+                    cell.innerHTML += `<span class="work-hours">${work.hours.toFixed(1)}h</span>`;
+                }
+                grid.appendChild(cell);
+            }
+        }
+
+        let currentTargetDate = '';
+        function openWorkModal(date) {
+            currentTargetDate = date;
+            document.getElementById('modalDate').innerText = date;
+            const existing = state.workData[date];
+            document.getElementById('startTime').value = existing ? existing.start : '09:00';
+            document.getElementById('endTime').value = existing ? existing.end : '18:00';
+            document.getElementById('inputRate').value = existing ? existing.rate : 190;
+            document.getElementById('modalWork').classList.remove('hidden');
+        }
+
+        function saveWork() {
+            const s = document.getElementById('startTime').value, e = document.getElementById('endTime').value;
+            const r = parseFloat(document.getElementById('inputRate').value) || 0;
+            if (s && e) {
+                const startArr = s.split(':').map(Number), endArr = e.split(':').map(Number);
+                let hours = (endArr[0] + endArr[1]/60) - (startArr[0] + startArr[1]/60);
+                if (hours < 0) hours += 24;
+                state.workData[currentTargetDate] = { start: s, end: e, rate: r, hours: hours };
+                saveAndRefresh(); closeModal('modalWork');
+            }
+        }
+
+        function deleteWork() { delete state.workData[currentTargetDate]; saveAndRefresh(); closeModal('modalWork'); }
+
+        function updateStats() {
+            const monthPrefix = `${state.currentYear}-${String(state.currentMonth + 1).padStart(2, '0')}`;
+            const yearPrefix = `${state.currentYear}-`;
+            let gross = 0, hours = 0, yearlyGross = 0;
+            Object.keys(state.workData).forEach(k => {
+                const work = state.workData[k];
+                if (k.startsWith(monthPrefix)) { gross += work.hours * work.rate; hours += work.hours; }
+                if (k.startsWith(yearPrefix)) yearlyGross += work.hours * work.rate;
+            });
+            document.getElementById('statGrossPay').innerText = `$${Math.round(gross).toLocaleString()}`;
+            document.getElementById('statActualPay').innerText = `$${Math.max(0, Math.round(gross - state.insuranceFee)).toLocaleString()}`;
+            document.getElementById('statYearlyPay').innerText = `$${Math.round(yearlyGross).toLocaleString()}`;
+            document.getElementById('statTotalHours').innerText = `${hours.toFixed(1)}h`;
+        }
+
+        // --- 預算區邏輯 ---
+        let currentEditingEntryId = null;
+        function renderBudgetPage() {
+            const progressList = document.getElementById('budgetProgressList');
+            const entryList = document.getElementById('budgetEntryList');
+            progressList.innerHTML = ''; entryList.innerHTML = '';
+            const monthPrefix = `${state.currentYear}-${String(state.currentMonth + 1).padStart(2, '0')}`;
+            let totalSpent = 0, totalLimit = 0;
+
+            Object.keys(state.budgets).forEach(key => {
+                const budget = state.budgets[key];
+                const spent = state.entries.filter(e => e.category === key && e.date.startsWith(monthPrefix)).reduce((sum, e) => sum + e.amount, 0);
+                totalSpent += spent; totalLimit += budget.limit;
+                const per = Math.min((spent / budget.limit) * 100, 100);
+                progressList.innerHTML += `
+                    <div class="bg-white/60 p-3 rounded-xl border border-white">
+                        <div class="flex justify-between items-center text-[10px] mb-1.5"><span class="font-bold text-stone-500">${budget.label}</span><span class="${spent > budget.limit ? 'text-rose-500' : 'text-stone-400'} font-black">$${spent.toLocaleString()} / $${budget.limit.toLocaleString()}</span></div>
+                        <div class="progress-bar"><div class="progress-fill ${spent > budget.limit ? 'bg-rose-400' : 'bg-[var(--photo-orange)]'}" style="width: ${per}%"></div></div>
+                    </div>`;
+            });
+
+            const monthEntries = state.entries.filter(e => e.date.startsWith(monthPrefix)).sort((a,b) => new Date(b.date) - new Date(a.date));
+            monthEntries.forEach(e => {
+                entryList.innerHTML += `
+                    <div onclick="openEditEntryModal(${e.id})" class="list-item-btn bg-white/50 p-3 rounded-xl border border-white flex justify-between items-center cursor-pointer">
+                        <div class="flex flex-col">
+                            <span class="text-[9px] font-black text-stone-400 uppercase tracking-tighter">${e.date.split('-')[2]}日 · ${state.budgets[e.category]?.label || '未分類'}</span>
+                            <span class="text-xs font-bold text-stone-600">${e.note || '生活的痕跡'}</span>
+                        </div>
+                        <span class="text-sm font-black text-rose-500">-$${e.amount.toLocaleString()}</span>
+                    </div>`;
+            });
+
+            document.getElementById('budgetBalance').innerText = `$${(totalLimit - totalSpent).toLocaleString()}`;
+            document.getElementById('budgetTotalSpent').innerText = `$${totalSpent.toLocaleString()}`;
+        }
+
+        function openEditEntryModal(id) {
+            currentEditingEntryId = id;
+            const e = state.entries.find(entry => entry.id === id);
+            if (!e) return;
+            const catSelect = document.getElementById('editEntryCategory');
+            catSelect.innerHTML = '';
+            Object.keys(state.budgets).forEach(k => { catSelect.innerHTML += `<option value="${k}">${state.budgets[k].label}</option>`; });
+            
+            document.getElementById('editEntryDate').value = e.date;
+            document.getElementById('editEntryCategory').value = e.category;
+            document.getElementById('editEntryAmount').value = e.amount;
+            document.getElementById('editEntryNote').value = e.note || '';
+            document.getElementById('modalEditEntry').classList.remove('hidden');
+        }
+
+        function saveEditEntry() {
+            const idx = state.entries.findIndex(e => e.id === currentEditingEntryId);
+            if (idx === -1) return;
+            state.entries[idx].date = document.getElementById('editEntryDate').value;
+            state.entries[idx].category = document.getElementById('editEntryCategory').value;
+            state.entries[idx].amount = parseFloat(document.getElementById('editEntryAmount').value) || 0;
+            state.entries[idx].note = document.getElementById('editEntryNote').value;
+            saveAndRefresh(); renderBudgetPage(); closeModal('modalEditEntry');
+        }
+
+        function deleteEntry() {
+            state.entries = state.entries.filter(e => e.id !== currentEditingEntryId);
+            saveAndRefresh(); renderBudgetPage(); closeModal('modalEditEntry');
+        }
+
+        function addEntry() {
+            const cat = document.getElementById('entryCategory').value, amt = parseFloat(document.getElementById('entryAmount').value) || 0;
+            const note = document.getElementById('entryNote').value, date = document.getElementById('entryDate').value;
+            if (amt > 0 && date) {
+                state.entries.push({ id: Date.now(), category: cat, amount: amt, note: note, date: date });
+                saveAndRefresh(); renderBudgetPage(); 
+                document.getElementById('entryAmount').value = '';
+                document.getElementById('entryNote').value = '';
+            }
+        }
+
+        // --- 計畫區邏輯 ---
+        function renderPlansPage() {
+            const savingList = document.getElementById('savingsPlanList'), sinkingList = document.getElementById('sinkingPlanList');
+            savingList.innerHTML = ''; sinkingList.innerHTML = '';
+            Object.keys(state.plans).forEach(key => {
+                const plan = state.plans[key];
+                const balance = plan.logs.reduce((sum, log) => sum + (log.type === 'deposit' ? log.amount : -log.amount), 0);
+                const progress = plan.target ? Math.min((balance / plan.target) * 100, 100) : 0;
+                const html = `
+                    <div onclick="openPlanAction('${key}')" class="cute-card p-4 border-l-4 ${plan.type === 'saving' ? 'border-blue-400' : 'border-emerald-400'} cursor-pointer active:scale-95 transition-transform">
+                        <div class="flex justify-between items-start">
+                            <div><p class="text-[10px] font-bold text-stone-400 mb-1">${plan.label}</p><p class="text-lg font-black text-stone-700">$${balance.toLocaleString()}</p></div>
+                            <div class="text-right"><p class="text-[9px] text-stone-300 font-bold uppercase">目標 $${plan.target.toLocaleString()}</p><p class="text-[10px] font-black text-stone-400">${progress.toFixed(0)}%</p></div>
+                        </div>
+                        <div class="mt-2 progress-bar"><div class="progress-fill ${plan.type === 'saving' ? 'bg-blue-400' : 'bg-emerald-400'}" style="width: ${progress}%"></div></div>
+                    </div>`;
+                if (plan.type === 'saving') savingList.innerHTML += html; else sinkingList.innerHTML += html;
+            });
+        }
+
+        let currentPlanKey = ''; let currentPlanType = 'deposit';
+        function openPlanAction(key) {
+            currentPlanKey = key; const plan = state.plans[key];
+            const balance = plan.logs.reduce((sum, log) => sum + (log.type === 'deposit' ? log.amount : -log.amount), 0);
+            document.getElementById('planActionTitle').innerText = plan.label;
+            document.getElementById('planCurrentBalance').innerText = `$${balance.toLocaleString()}`;
+            document.getElementById('planActionAmount').value = ''; 
+            setPlanActionType('deposit');
+            renderPlanLogs(key);
+            document.getElementById('modalPlanAction').classList.remove('hidden');
+        }
+
+        function renderPlanLogs(key) {
+            const logContainer = document.getElementById('planLogList');
+            logContainer.innerHTML = '';
+            const logs = [...state.plans[key].logs].reverse();
+            if (logs.length === 0) {
+                logContainer.innerHTML = '<p class="text-[10px] text-stone-300 text-center py-4">還沒有任何刻痕...</p>';
+                return;
+            }
+            logs.forEach((log) => {
+                logContainer.innerHTML += `
+                    <div onclick="openEditPlanLog('${log.id}')" class="bg-stone-50 p-3 rounded-xl border border-stone-100 flex justify-between items-center cursor-pointer list-item-btn">
+                        <div class="flex flex-col">
+                            <span class="text-[8px] font-black text-stone-300 uppercase">${log.date}</span>
+                            <span class="text-[10px] font-bold text-stone-600">${log.note || (log.type === 'deposit' ? '存入' : '支出')}</span>
+                        </div>
+                        <span class="text-xs font-black ${log.type === 'deposit' ? 'text-emerald-500' : 'text-rose-400'}">
+                            ${log.type === 'deposit' ? '+' : '-'}$${log.amount.toLocaleString()}
+                        </span>
+                    </div>`;
+            });
+        }
+
+        let currentEditingLogId = null;
+        let currentEditLogType = 'deposit';
+        function openEditPlanLog(logId) {
+            currentEditingLogId = logId;
+            const log = state.plans[currentPlanKey].logs.find(l => l.id === logId);
+            if (!log) return;
+            
+            setEditPlanLogType(log.type);
+            document.getElementById('editPlanLogDate').value = log.date;
+            document.getElementById('editPlanLogAmount').value = log.amount;
+            document.getElementById('editPlanLogNote').value = log.note || '';
+            document.getElementById('modalEditPlanLog').classList.remove('hidden');
+        }
+
+        function setEditPlanLogType(t) {
+            currentEditLogType = t;
+            const dep = document.getElementById('btnEditDep'), wit = document.getElementById('btnEditWit');
+            if(t === 'deposit') {
+                dep.className = "flex-1 py-2 rounded-xl bg-emerald-50 text-emerald-600 font-black border-2 border-emerald-500";
+                wit.className = "flex-1 py-2 rounded-xl bg-stone-50 text-stone-400 font-black border-2 border-transparent";
+            } else {
+                wit.className = "flex-1 py-2 rounded-xl bg-rose-50 text-rose-600 font-black border-2 border-rose-500";
+                dep.className = "flex-1 py-2 rounded-xl bg-stone-50 text-stone-400 font-black border-2 border-transparent";
+            }
+        }
+
+        function saveEditPlanLog() {
+            const logs = state.plans[currentPlanKey].logs;
+            const idx = logs.findIndex(l => l.id === currentEditingLogId);
+            if(idx === -1) return;
+
+            logs[idx].type = currentEditLogType;
+            logs[idx].date = document.getElementById('editPlanLogDate').value;
+            logs[idx].amount = parseFloat(document.getElementById('editPlanLogAmount').value) || 0;
+            logs[idx].note = document.getElementById('editPlanLogNote').value;
+
+            saveData();
+            renderPlansPage();
+            openPlanAction(currentPlanKey); // 刷新明細
+            closeModal('modalEditPlanLog');
+        }
+
+        function deletePlanLog() {
+            state.plans[currentPlanKey].logs = state.plans[currentPlanKey].logs.filter(l => l.id !== currentEditingLogId);
+            saveData();
+            renderPlansPage();
+            openPlanAction(currentPlanKey);
+            closeModal('modalEditPlanLog');
+        }
+
+        function setPlanActionType(t) {
+            currentPlanType = t;
+            const dep = document.getElementById('btnDeposit'), wit = document.getElementById('btnWithdraw');
+            if(t === 'deposit') {
+                dep.className = "flex-1 py-2 rounded-xl bg-emerald-50 text-emerald-600 font-black text-xs border-2 border-emerald-500";
+                wit.className = "flex-1 py-2 rounded-xl bg-stone-50 text-stone-400 font-black text-xs border-2 border-transparent";
+            } else {
+                wit.className = "flex-1 py-2 rounded-xl bg-rose-50 text-rose-600 font-black text-xs border-2 border-rose-500";
+                dep.className = "flex-1 py-2 rounded-xl bg-stone-50 text-stone-400 font-black text-xs border-2 border-transparent";
+            }
+        }
+
+        function savePlanAction() {
+            const amt = parseFloat(document.getElementById('planActionAmount').value) || 0;
+            const note = document.getElementById('planActionNote').value;
+            if (amt > 0) {
+                state.plans[currentPlanKey].logs.push({ 
+                    id: Math.random().toString(36).substr(2, 9),
+                    type: currentPlanType, 
+                    amount: amt, 
+                    date: new Date().toISOString().split('T')[0], 
+                    note: note 
+                });
+                saveData(); 
+                renderPlansPage(); 
+                openPlanAction(currentPlanKey);
+                document.getElementById('planActionAmount').value = '';
+                document.getElementById('planActionNote').value = '';
+            }
+        }
+
+        // --- 設定與通用 ---
+        function updateCategoryDropdown() {
+            const select = document.getElementById('entryCategory'); select.innerHTML = '';
+            Object.keys(state.budgets).forEach(k => { select.innerHTML += `<option value="${k}">${state.budgets[k].label}</option>`; });
+        }
+
+        function openSettings() {
+            document.getElementById('inputInsurance').value = state.insuranceFee;
+            const bList = document.getElementById('budgetLimitList');
+            bList.innerHTML = '<p class="text-[10px] font-black text-stone-400 mb-2 uppercase">日常預算限額</p>';
+            Object.keys(state.budgets).forEach(k => { bList.innerHTML += `<div class="flex justify-between items-center gap-2"><span class="text-[10px] font-bold text-stone-500 w-24">${state.budgets[k].label}</span><input type="number" data-bkey="${k}" value="${state.budgets[k].limit}" class="flex-1 bg-stone-50 rounded-lg px-2 py-1.5 text-xs font-bold border-none text-right"></div>`; });
+            const pContainer = document.getElementById('planInputsContainer'); pContainer.innerHTML = '';
+            Object.keys(state.plans).forEach(k => { pContainer.innerHTML += `<div class="flex justify-between items-center gap-2"><span class="text-[10px] font-bold text-stone-500 w-24">${state.plans[k].label}</span><input type="number" data-pkey="${k}" value="${state.plans[k].target || 0}" class="flex-1 bg-stone-50 rounded-lg px-2 py-1.5 text-xs font-bold border-none text-right"></div>`; });
+            document.getElementById('modalSettings').classList.remove('hidden');
+        }
+
+        function saveGlobalSettings() {
+            state.insuranceFee = parseFloat(document.getElementById('inputInsurance').value) || 0;
+            document.querySelectorAll('[data-bkey]').forEach(input => { state.budgets[input.dataset.bkey].limit = parseFloat(input.value) || 0; });
+            document.querySelectorAll('[data-pkey]').forEach(input => { state.plans[input.dataset.pkey].target = parseFloat(input.value) || 0; });
+            saveAndRefresh();
+            if(document.getElementById('page-budget').classList.contains('active')) renderBudgetPage();
+            if(document.getElementById('page-plans').classList.contains('active')) renderPlansPage();
+            closeModal('modalSettings');
+        }
+
+        function saveAndRefresh() { saveData(); renderCalendar(); updateStats(); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        
+        window.onload = init;
+    </script>
+</body>
+</html>
